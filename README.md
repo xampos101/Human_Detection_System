@@ -1,4 +1,4 @@
-# Human Detection System �
+# Human Detection System 
 
 Σύστημα ανίχνευσης και tracking ανθρώπων με YOLOv12, improved re-ID και camera recording.
 
