@@ -1,14 +1,6 @@
-# Human Detection & Tracking System v2.0 🚀
+# Human Detection System �
 
 Σύστημα ανίχνευσης και tracking ανθρώπων με YOLOv12, improved re-ID και camera recording.
-
-## ✨ Νέα Χαρακτηριστικά v2.0
-
-- 🔴 **REC Button**: Recording στο camera mode με hotkeys (R/S)
-- 🎯 **Improved Detection**: Χαμηλότερο confidence (0.3) για καλύτερη ανίχνευση
-- 🧠 **Appearance-based Re-ID**: Χρησιμοποιεί color histograms & spatial features
-- 📊 **Better Tracking**: Stricter re-ID threshold (0.75) για ακριβέστερο matching
-- 🎨 **Enhanced Visualization**: Lost tracks counter, better stats panel
 
 ## Χαρακτηριστικά
 
@@ -18,6 +10,7 @@
 - ✅ Real-time camera ή video upload
 - ✅ GUI με Tkinter
 - ✅ Μετρητές: τρέχοντες άνθρωποι & συνολικοί άνθρωποι που πέρασαν
+- ✅ Recording στο camera mode με hotkeys (R/S)
 - ✅ Καθαρή αρχιτεκτονική
 
 ## Εγκατάσταση
