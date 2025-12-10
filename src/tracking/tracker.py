@@ -226,15 +226,8 @@ class HumanTracker:
 
         # Move unmatched tracks to lost
         for track_id in unmatched_tracks:
-            time_lost = frame_id - self.tracks[track_id]['last_seen']
-
-            if time_lost > self.max_time_lost:
-                # Διαγραφή αν χάθηκε για πολύ καιρό
-                del self.tracks[track_id]
-                if track_id in self.track_features:
-                    del self.track_features[track_id]
-            else:
-                # Μετακίνηση στα lost tracks
+            # Μετακίνηση στα lost tracks (unmatched = not detected in this frame)
+            if track_id in self.tracks:
                 self.lost_tracks[track_id] = self.tracks[track_id].copy()
                 self.lost_tracks[track_id]['last_position'] = (
                     (self.tracks[track_id]['box'][0] + self.tracks[track_id]['box'][2]) / 2,

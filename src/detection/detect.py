@@ -9,27 +9,92 @@ from pathlib import Path
 import cv2
 
 
+def get_available_device(device_preference=None):
+    """
+    Εντοπισμός διαθέσιμου device (CPU/GPU)
+    
+    Args:
+        device_preference: 'cuda', 'cpu', ή None για auto-detection
+        
+    Returns:
+        device string ('cuda', 'cpu', 'mps', etc.)
+    """
+    try:
+        import torch
+        
+        if device_preference == 'cpu':
+            return 'cpu'
+        elif device_preference == 'cuda':
+            if torch.cuda.is_available():
+                return 'cuda'
+            else:
+                print("⚠️ CUDA requested but not available, falling back to CPU")
+                return 'cpu'
+        else:
+            # Auto-detection
+            if torch.cuda.is_available():
+                return 'cuda'
+            elif hasattr(torch.backends, 'mps') and torch.backends.mps.is_available():
+                return 'mps'  # Apple Silicon
+            else:
+                return 'cpu'
+    except ImportError:
+        print("⚠️ PyTorch not installed, using CPU")
+        return 'cpu'
+
+
 class HumanDetector:
     """Detector για ανθρώπους χρησιμοποιώντας YOLOv12"""
 
-    def __init__(self, model_path="models/yolo12n.pt", confidence=0.3, iou_threshold=0.45):
+    def __init__(self, model_path="models/yolo12n.pt", confidence=0.3, iou_threshold=0.45, device=None):
         """
         Args:
             model_path: Path για το YOLOv12 model
             confidence: Minimum confidence threshold (μειωμένο για καλύτερο detection)
             iou_threshold: IoU threshold για NMS
+            device: 'cuda', 'cpu', ή None για auto-detection
         """
         self.confidence = confidence
         self.iou_threshold = iou_threshold
         self.model_path = Path(model_path)
+        
+        # Device selection
+        self.device = get_available_device(device)
+        self.device_name = self._get_device_name()
 
         # Φόρτωση YOLOv12 model
         print(f"📦 Φόρτωση YOLOv12 model από {model_path}...")
+        print(f"🖥️  Device: {self.device_name}")
         self.model = YOLO(model_path)
+        
+        # Set device για το model
+        if self.device != 'cpu':
+            try:
+                self.model.to(self.device)
+            except Exception as e:
+                print(f"⚠️ Could not set device to {self.device}: {e}")
+                print("   Falling back to CPU")
+                self.device = 'cpu'
+                self.device_name = "CPU"
+        
         print("✅ Model φορτώθηκε επιτυχώς!")
 
         # COCO dataset: class 0 = person
         self.person_class_id = 0
+    
+    def _get_device_name(self):
+        """Επιστροφή user-friendly device name"""
+        try:
+            import torch
+            if self.device == 'cuda':
+                gpu_name = torch.cuda.get_device_name(0) if torch.cuda.is_available() else "CUDA"
+                return f"GPU ({gpu_name})"
+            elif self.device == 'mps':
+                return "Apple Silicon (MPS)"
+            else:
+                return "CPU"
+        except (ImportError, AttributeError, RuntimeError):
+            return "CPU"
 
     def detect(self, frame):
         """
@@ -47,7 +112,8 @@ class HumanDetector:
             conf=self.confidence,
             iou=self.iou_threshold,
             verbose=False,
-            classes=[0]  # Μόνο person class
+            classes=[0],  # Μόνο person class
+            device=self.device  # Explicit device specification
         )
 
         detections = []
@@ -95,7 +161,7 @@ class HumanDetector:
         # Resize για consistency
         try:
             person_crop = cv2.resize(person_crop, (64, 128))
-        except:
+        except (cv2.error, ValueError, AttributeError):
             return np.zeros(128)
 
         # Color histogram features (HSV)
@@ -151,7 +217,8 @@ class HumanDetector:
             conf=self.confidence,
             iou=self.iou_threshold,
             verbose=False,
-            classes=[0]
+            classes=[0],
+            device=self.device  # Explicit device specification
         )
 
         all_detections = []

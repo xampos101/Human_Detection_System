@@ -9,8 +9,10 @@
 - ✅ Re-identification: διατηρεί το ID ακόμα κι αν βγει και ξαναμπεί στο πλάνο
 - ✅ Real-time camera ή video upload
 - ✅ GUI με Tkinter
+- ✅ **CPU/GPU Selection**: Επιλογή device (Auto/CPU/GPU) για καλύτερη απόδοση
 - ✅ Μετρητές: τρέχοντες άνθρωποι & συνολικοί άνθρωποι που πέρασαν
 - ✅ Recording στο camera mode με hotkeys (R/S)
+- ✅ Device info display στο GUI και video output
 - ✅ Καθαρή αρχιτεκτονική
 
 ## Εγκατάσταση
@@ -63,6 +65,16 @@ Human Detection/
 └── requirements.txt
 ```
 
+## Device Selection (CPU/GPU)
+
+Το σύστημα υποστηρίζει αυτόματη ανίχνευση και επιλογή device:
+
+- **Auto-detect**: Αυτόματη επιλογή (GPU αν διαθέσιμο, αλλιώς CPU)
+- **CPU**: Εξαναγκασμένη χρήση CPU
+- **GPU (CUDA)**: Εξαναγκασμένη χρήση GPU (αν διαθέσιμο)
+
+Η επιλογή γίνεται από το GUI πριν την έναρξη detection. Το device εμφανίζεται στο video output.
+
 ## Πώς λειτουργεί το Re-identification
 
 Το σύστημα χρησιμοποιεί:
@@ -81,8 +93,22 @@ Human Detection/
 ## Requirements
 
 - Python 3.8+
-- CUDA (προαιρετικό, για GPU acceleration)
+- PyTorch (απαιτείται, υποστηρίζει CPU και GPU)
+- CUDA (προαιρετικό, για GPU acceleration - εγκατάσταση μέσω PyTorch)
 - Webcam (για real-time mode)
+
+### Εγκατάσταση PyTorch με GPU Support
+
+```bash
+# CPU only (default)
+pip install torch torchvision
+
+# CUDA 11.8
+pip install torch torchvision --index-url https://download.pytorch.org/whl/cu118
+
+# CUDA 12.1
+pip install torch torchvision --index-url https://download.pytorch.org/whl/cu121
+```
 
 ## Troubleshooting
 
@@ -90,7 +116,8 @@ Human Detection/
 - Λύση: Κατέβασε manually το `yolo12n.pt` στον φάκελο `models/`
 
 **Πρόβλημα**: Αργή ταχύτητα
-- Λύση: Χρησιμοποίησε GPU ή μικρότερο μοντέλο (nano: yolo12n.pt)
+- Λύση: Επίλεξε GPU από το GUI (αν είναι διαθέσιμο) ή χρησιμοποίησε μικρότερο μοντέλο (nano: yolo12n.pt)
+- Σημείωση: Το GPU μπορεί να δώσει 3-10x καλύτερη απόδοση από CPU
 
 **Πρόβλημα**: Camera δεν ανοίγει
 - Λύση: Έλεγξε αν η κάμερα χρησιμοποιείται από άλλη εφαρμογή

@@ -22,7 +22,7 @@ class HumanDetectionApp:
     def __init__(self, root):
         self.root = root
         self.root.title("Human Detection & Tracking System")
-        self.root.geometry("500x400")
+        self.root.geometry("550x550")
         self.root.resizable(False, False)
 
         # State
@@ -31,6 +31,7 @@ class HumanDetectionApp:
         self.video_writer = None
         self.detector = None
         self.tracker = None
+        self.device_preference = tk.StringVar(value="auto")  # auto, cpu, cuda
 
         self._setup_ui()
 
@@ -54,9 +55,47 @@ class HumanDetectionApp:
         )
         subtitle.pack()
 
+        # Device selection frame
+        device_frame = tk.Frame(self.root)
+        device_frame.pack(pady=20)
+        
+        device_label = tk.Label(
+            device_frame,
+            text="Device:",
+            font=("Arial", 11, "bold"),
+            fg="#2c3e50"
+        )
+        device_label.pack(side=tk.LEFT, padx=5)
+        
+        # Device options
+        device_options = [("Auto-detect", "auto"), ("CPU", "cpu"), ("GPU (CUDA)", "cuda")]
+        
+        for text, value in device_options:
+            rb = tk.Radiobutton(
+                device_frame,
+                text=text,
+                variable=self.device_preference,
+                value=value,
+                font=("Arial", 10),
+                fg="#34495e",
+                activebackground="#ecf0f1",
+                command=self._update_device_info
+            )
+            rb.pack(side=tk.LEFT, padx=5)
+        
+        # Device info label
+        self.device_info_label = tk.Label(
+            self.root,
+            text="",
+            font=("Arial", 9),
+            fg="#95a5a6"
+        )
+        self.device_info_label.pack(pady=5)
+        self._update_device_info()
+
         # Frame για buttons
         button_frame = tk.Frame(self.root)
-        button_frame.pack(pady=50)
+        button_frame.pack(pady=30)
 
         # Camera button
         camera_btn = tk.Button(
@@ -86,6 +125,20 @@ class HumanDetectionApp:
         )
         upload_btn.pack(pady=10)
 
+        # Open Records button
+        records_btn = tk.Button(
+            button_frame,
+            text="📂 Open Records",
+            font=("Arial", 14),
+            bg="#9b59b6",
+            fg="white",
+            width=20,
+            height=2,
+            command=self._open_outputs_folder,
+            cursor="hand2"
+        )
+        records_btn.pack(pady=10)
+
         # Status label
         self.status_label = tk.Label(
             self.root,
@@ -103,9 +156,95 @@ class HumanDetectionApp:
             fg="#95a5a6"
         )
         info_label.pack(side=tk.BOTTOM, pady=5)
+    
+    def _update_device_info(self):
+        """Ενημέρωση device info label"""
+        try:
+            from src.detection.detect import get_available_device
+            device = get_available_device(self.device_preference.get())
+            
+            if device == 'cuda':
+                try:
+                    import torch
+                    if torch.cuda.is_available():
+                        gpu_name = torch.cuda.get_device_name(0)
+                        self.device_info_label.config(
+                            text=f"✓ GPU Available: {gpu_name}",
+                            fg="#27ae60"
+                        )
+                    else:
+                        self.device_info_label.config(
+                            text="⚠ GPU requested but not available",
+                            fg="#e74c3c"
+                        )
+                except:
+                    self.device_info_label.config(
+                        text="⚠ GPU requested but PyTorch not available",
+                        fg="#e74c3c"
+                    )
+            elif device == 'mps':
+                self.device_info_label.config(
+                    text="✓ Apple Silicon (MPS) Available",
+                    fg="#27ae60"
+                )
+            else:
+                self.device_info_label.config(
+                    text="ℹ Using CPU",
+                    fg="#95a5a6"
+                )
+        except Exception as e:
+            self.device_info_label.config(
+                text="⚠ Could not detect device",
+                fg="#e74c3c"
+            )
+
+    def _open_outputs_folder(self):
+        """Άνοιγμα του φακέλου outputs"""
+        import subprocess
+        import platform
+        import os
+
+        output_dir = Path("outputs")
+        
+        # Δημιουργία φακέλου αν δεν υπάρχει
+        output_dir.mkdir(exist_ok=True)
+
+        output_path = output_dir.absolute()
+
+        try:
+            if platform.system() == "Windows":
+                # Windows: χρήση explorer
+                os.startfile(str(output_path))
+            elif platform.system() == "Darwin":  # macOS
+                subprocess.Popen(["open", str(output_path)])
+            else:  # Linux
+                subprocess.Popen(["xdg-open", str(output_path)])
+            
+            self.status_label.config(text=f"Άνοιξε φάκελος: {output_path}")
+        except Exception as e:
+            messagebox.showerror(
+                "Σφάλμα",
+                f"Δεν μπόρεσε να ανοίξει ο φάκελος:\n{str(e)}\n\n"
+                f"Path: {output_path}"
+            )
+            self.status_label.config(text="Σφάλμα ανοίγματος φακέλου")
 
     def _initialize_models(self):
         """Αρχικοποίηση detector και tracker"""
+        # Αν υπάρχει ήδη detector με διαφορετικό device, reset
+        device_pref = self.device_preference.get()
+        if self.detector is not None:
+            # Check if device changed
+            current_device = self.detector.device
+            new_device = device_pref if device_pref != "auto" else None
+            if new_device is None:
+                # Auto mode - check what would be selected
+                from src.detection.detect import get_available_device
+                new_device = get_available_device(None)
+            
+            if current_device != new_device:
+                self.detector = None
+        
         if self.detector is None:
             self.status_label.config(text="Φόρτωση μοντέλου...")
             self.root.update()
@@ -114,17 +253,22 @@ class HumanDetectionApp:
             Path("models").mkdir(exist_ok=True)
 
             try:
+                # Device selection
+                device = None if device_pref == "auto" else device_pref
+                
                 # Χαμηλότερο confidence για καλύτερο detection
                 self.detector = HumanDetector(
                     model_path="models/yolo12n.pt",
-                    confidence=0.3  # Μειωμένο από 0.5
+                    confidence=0.3,  # Μειωμένο από 0.5
+                    device=device
                 )
                 self.tracker = HumanTracker(
                     max_time_lost=90,  # 3 seconds @ 30fps
                     reid_threshold=0.75,  # Πιο strict για ακριβέστερο re-ID
                     iou_threshold=0.3
                 )
-                self.status_label.config(text="Μοντέλο φορτώθηκε!")
+                device_status = f"Μοντέλο φορτώθηκε! ({self.detector.device_name})"
+                self.status_label.config(text=device_status)
             except Exception as e:
                 messagebox.showerror(
                     "Σφάλμα",
@@ -309,6 +453,18 @@ class HumanDetectionApp:
                 0.7,
                 (0, 255, 0),
                 2
+            )
+            
+            # Device indicator
+            device_text = self.detector.device_name if self.detector else "N/A"
+            cv2.putText(
+                output_frame,
+                f"Device: {device_text}",
+                (output_frame.shape[1] - 200, 65),
+                cv2.FONT_HERSHEY_SIMPLEX,
+                0.5,
+                (255, 255, 255),
+                1
             )
 
             # REC indicator

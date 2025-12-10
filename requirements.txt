@@ -8,6 +8,9 @@ scipy>=1.10.0
 # Tracking
 lap>=0.4.0
 
-# Optional: GPU support (uncomment if you have CUDA)
-# torch>=2.0.0
-# torchvision>=0.15.0
+# PyTorch (required for YOLO, supports both CPU and GPU)
+# For CPU-only: pip install torch torchvision
+# For CUDA GPU: pip install torch torchvision --index-url https://download.pytorch.org/whl/cu118
+# For CUDA 12.1: pip install torch torchvision --index-url https://download.pytorch.org/whl/cu121
+torch>=2.0.0
+torchvision>=0.15.0
