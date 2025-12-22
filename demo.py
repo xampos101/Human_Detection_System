@@ -10,10 +10,86 @@ from pathlib import Path
 import threading
 import time
 from datetime import datetime
+import os
+import sys
 
 from src.detection.detect import HumanDetector
 from src.tracking.tracker import HumanTracker
 from src.utils.helpers import draw_tracks, resize_frame, create_output_path
+
+
+def get_app_data_dir():
+    """
+    Επιστροφή directory για app data (models, outputs, data)
+    Αν δεν μπορεί να γράψει στο current directory, χρησιμοποιεί AppData
+    """
+    # Προσπάθεια να χρησιμοποιήσουμε το current directory (για development)
+    try:
+        test_dir = Path(".")
+        test_file = test_dir / ".write_test"
+        try:
+            test_file.touch()
+            test_file.unlink()
+            # Μπορούμε να γράψουμε, χρησιμοποιούμε current directory
+            return Path(".").absolute()
+        except (PermissionError, OSError):
+            pass
+    except Exception:
+        pass
+    
+    # Αν δεν μπορούμε, χρησιμοποιούμε AppData
+    if sys.platform == "win32":
+        appdata = Path(os.getenv("APPDATA", Path.home() / "AppData" / "Roaming"))
+    elif sys.platform == "darwin":
+        appdata = Path.home() / "Library" / "Application Support"
+    else:
+        appdata = Path.home() / ".local" / "share"
+    
+    app_dir = appdata / "Human_Detection_System"
+    app_dir.mkdir(parents=True, exist_ok=True)
+    return app_dir
+
+
+def get_models_dir():
+    """Επιστροφή path για models directory"""
+    base_dir = get_app_data_dir()
+    models_dir = base_dir / "models"
+    try:
+        models_dir.mkdir(parents=True, exist_ok=True)
+    except (PermissionError, OSError):
+        # Fallback σε AppData αν αποτύχει
+        appdata = Path(os.getenv("APPDATA", Path.home() / "AppData" / "Roaming"))
+        models_dir = appdata / "Human_Detection_System" / "models"
+        models_dir.mkdir(parents=True, exist_ok=True)
+    return models_dir
+
+
+def get_outputs_dir():
+    """Επιστροφή path για outputs directory"""
+    base_dir = get_app_data_dir()
+    outputs_dir = base_dir / "outputs"
+    try:
+        outputs_dir.mkdir(parents=True, exist_ok=True)
+    except (PermissionError, OSError):
+        # Fallback σε AppData αν αποτύχει
+        appdata = Path(os.getenv("APPDATA", Path.home() / "AppData" / "Roaming"))
+        outputs_dir = appdata / "Human_Detection_System" / "outputs"
+        outputs_dir.mkdir(parents=True, exist_ok=True)
+    return outputs_dir
+
+
+def get_data_dir():
+    """Επιστροφή path για data directory"""
+    base_dir = get_app_data_dir()
+    data_dir = base_dir / "data"
+    try:
+        data_dir.mkdir(parents=True, exist_ok=True)
+    except (PermissionError, OSError):
+        # Fallback σε AppData αν αποτύχει
+        appdata = Path(os.getenv("APPDATA", Path.home() / "AppData" / "Roaming"))
+        data_dir = appdata / "Human_Detection_System" / "data"
+        data_dir.mkdir(parents=True, exist_ok=True)
+    return data_dir
 
 
 class HumanDetectionApp:
@@ -204,11 +280,7 @@ class HumanDetectionApp:
         import platform
         import os
 
-        output_dir = Path("outputs")
-        
-        # Δημιουργία φακέλου αν δεν υπάρχει
-        output_dir.mkdir(exist_ok=True)
-
+        output_dir = get_outputs_dir()
         output_path = output_dir.absolute()
 
         try:
@@ -249,16 +321,32 @@ class HumanDetectionApp:
             self.status_label.config(text="Φόρτωση μοντέλου...")
             self.root.update()
 
-            # Δημιουργία models directory αν δεν υπάρχει
-            Path("models").mkdir(exist_ok=True)
-
             try:
                 # Device selection
                 device = None if device_pref == "auto" else device_pref
                 
+                # Χρήση models directory με fallback
+                models_dir = get_models_dir()
+                model_path = models_dir / "yolo12n.pt"
+                
+                # Αν το model δεν υπάρχει στο models_dir, δοκίμασε στο _internal/models (για .exe)
+                if not model_path.exists():
+                    # Check αν τρέχουμε από .exe (PyInstaller sets sys.frozen)
+                    if getattr(sys, 'frozen', False):
+                        # Τρέχουμε από .exe - το sys.executable είναι το .exe path
+                        exe_dir = Path(sys.executable).parent
+                        internal_models = exe_dir / "_internal" / "models" / "yolo12n.pt"
+                        if internal_models.exists():
+                            model_path = internal_models
+                    else:
+                        # Τρέχουμε από Python script - δοκίμασε στο current directory
+                        local_models = Path("models") / "yolo12n.pt"
+                        if local_models.exists():
+                            model_path = local_models
+                
                 # Χαμηλότερο confidence για καλύτερο detection
                 self.detector = HumanDetector(
-                    model_path="models/yolo12n.pt",
+                    model_path=str(model_path),
                     confidence=0.3,  # Μειωμένο από 0.5
                     device=device
                 )
@@ -333,9 +421,7 @@ class HumanDetectionApp:
 
         # Δημιουργία output path
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-        output_dir = Path("outputs")
-        output_dir.mkdir(exist_ok=True)
-
+        output_dir = get_outputs_dir()
         output_path = output_dir / f"camera_recording_{timestamp}.mp4"
 
         # Video writer
@@ -379,7 +465,7 @@ class HumanDetectionApp:
                 import subprocess
                 import platform
 
-                output_dir = Path("outputs").absolute()
+                output_dir = get_outputs_dir().absolute()
 
                 if platform.system() == "Windows":
                     subprocess.Popen(f'explorer "{output_dir}"')
@@ -543,8 +629,11 @@ class HumanDetectionApp:
         height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
         total_frames = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
 
-        # Output video path
-        output_path = create_output_path(video_path)
+        # Output video path - χρησιμοποιούμε get_outputs_dir() αντί για hardcoded "outputs"
+        outputs_dir = get_outputs_dir()
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        input_name = Path(video_path).stem
+        output_path = outputs_dir / f"{input_name}_tracked_{timestamp}.mp4"
 
         # Video writer (με panel height)
         fourcc = cv2.VideoWriter_fourcc(*'mp4v')
@@ -645,9 +734,14 @@ class HumanDetectionApp:
 
 def main():
     """Entry point"""
-    # Δημιουργία απαραίτητων directories
-    for directory in ["models", "data", "outputs"]:
-        Path(directory).mkdir(exist_ok=True)
+    # Δημιουργία απαραίτητων directories (με fallback σε AppData αν χρειάζεται)
+    try:
+        get_models_dir()
+        get_outputs_dir()
+        get_data_dir()
+    except Exception as e:
+        print(f"⚠️ Warning: Could not create directories: {e}")
+        print("   The application will try to use AppData directory instead.")
 
     print("=" * 60)
     print("🎥 Human Detection & Tracking System")

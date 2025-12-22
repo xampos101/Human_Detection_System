@@ -1,0 +1,63 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+*.egg-info/
+dist/
+build/
+*.egg
+
+# Virtual Environment
+.venv/
+venv/
+ENV/
+env/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# PyInstaller
+*.spec.bak
+*.manifest
+# Keep .spec files (they are configuration files)
+# *.spec
+
+# Build outputs
+build/
+dist/
+*.exe
+*.pkg
+
+# Installer outputs
+installer/
+*.iss.bak
+
+# Model files (large, should be downloaded)
+models/*.pt
+models/*.onnx
+models/*.pth
+
+# Output files
+outputs/
+*.mp4
+*.avi
+*.mov
+
+# OS
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Logs
+*.log
+
+# Temporary files
+*.tmp
+*.temp
+

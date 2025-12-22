@@ -111,6 +111,53 @@ pip install torch torchvision --index-url https://download.pytorch.org/whl/cu118
 pip install torch torchvision --index-url https://download.pytorch.org/whl/cu121
 ```
 
+## Building to EXE
+
+To create a standalone Windows executable:
+
+### Prerequisites
+
+1. Install PyInstaller:
+```bash
+py -m pip install pyinstaller
+```
+
+### Build Options
+
+**Option 1: Using the batch script (Recommended)**
+```bash
+build_exe.bat
+```
+
+**Option 2: Using the spec file**
+```bash
+py -m PyInstaller Human_Detection_System.spec
+```
+
+**Option 3: Direct command**
+```bash
+py -m PyInstaller --name="Human_Detection_System" --onedir --windowed --add-data "models;models" --add-data "data;data" --hidden-import=ultralytics --collect-all=ultralytics --collect-all=torch demo.py
+```
+
+### Output
+
+The executable will be created in `dist/Human_Detection_System/`:
+- `Human_Detection_System.exe` - Main executable
+- `_internal/` - All dependencies and libraries
+
+**Note**: The entire `dist/Human_Detection_System/` folder must be distributed together. The .exe requires the `_internal/` folder to run.
+
+### File Size
+
+The executable folder will be large (approximately 1-2 GB) due to PyTorch and Ultralytics dependencies. This is normal.
+
+### Distribution
+
+To distribute the application:
+1. Zip the entire `dist/Human_Detection_System/` folder
+2. Users can extract and run `Human_Detection_System.exe` directly
+3. No Python installation required on the target machine
+
 ## Troubleshooting
 
 **Issue**: YOLOv12 doesn't download
@@ -122,3 +169,6 @@ pip install torch torchvision --index-url https://download.pytorch.org/whl/cu121
 
 **Issue**: Camera doesn't open
 - Solution: Check if the camera is being used by another application
+
+**Issue**: `pip` command not found
+- Solution: Use `py -m pip` instead of `pip` on Windows
